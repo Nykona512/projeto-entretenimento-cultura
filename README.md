@@ -61,7 +61,7 @@ Cinemas precisam organizar seus filmes, salas, horários de exibição e vendas 
 
 A API é organizada em camadas. Uma requisição entra pelo Controller, passa pelo Service, que aplica as regras de negócio, e chega ao banco pelo Repository; a resposta faz o caminho de volta. Nesta implementação, os DTOs de entrada são recebidos nos Controllers; a conversão necessária é feita nos Services e nos próprios DTOs de resposta. Os Mappers convertem entidades em DTOs de resposta.
 
-**Mapa da estrutura.** Situação dos arquivos presentes no código entregue e testado pelo grupo:
+**Mapa da estrutura.** Situação dos arquivos presentes no código:
 
 | Entidade | Migration | Model | Repository | DTOs | Mapper | Service | Controller |
 |---|---|---|---|---|---|---|---|
@@ -159,8 +159,6 @@ cd projeto-entretenimento-cultura
 docker compose up -d          # sobe o PostgreSQL na porta 5437
 ./mvnw spring-boot:run        # Windows: .\mvnw.cmd spring-boot:run
 ```
-
-> Para executar o projeto por clone, os arquivos da API implementada precisam já estar presentes na branch selecionada. Se o código ainda estiver apenas nos ZIPs do grupo, abra a pasta extraída no VS Code e execute os mesmos comandos nela.
 
 Com a API no ar:
 
