@@ -1,108 +1,162 @@
 # Contrato da API
 
-> O contrato é o que o cliente da API enxerga: rotas, JSON e status. Desenhe as rotas de **todas** as entidades. Nesta etapa precisam funcionar as três da API simples e as que as regras de negócio usam. As linhas marcadas com *(exemplo)* mostram o nível de detalhe esperado: apague e escreva as do grupo.
+Este documento descreve as rotas implementadas no projeto e distingue as operações ainda não disponíveis.
 
 ## Convenções
 
 | Item | Valor |
 |---|---|
 | Endereço base | `http://localhost:8080` |
-| Formato | JSON, na requisição e na resposta |
-| Datas | `yyyy-MM-dd` |
-| Erros | Sempre no formato `ErroDTO` (ver [Erros](#erros)) |
+| Formato | JSON |
+| Datas | `yyyy-MM-ddTHH:mm:ss` em `Sessao.inicio` |
+| Erros | `ErroDTO` com `status`, `erro`, `mensagem`, `caminho`, `timestamp`, `campos` |
 | Documentação viva | `http://localhost:8080/swagger-ui.html` |
 
 ## Rotas
 
-Coluna **Funciona**: `sim` para as rotas que já respondem nesta etapa: as da API simples e as que as regras de negócio usam.
-
-### Livros *(exemplo)*
+### Filmes
 
 | Verbo | Caminho | O que faz | Entrada | Saída | Sucesso | Erros | Funciona |
 |---|---|---|---|---|---|---|---|
-| `GET` | `/livros` | Lista os livros | Nenhuma | lista de `LivroResponseDTO` | `200` | Nenhum | sim |
-| `GET` | `/livros/{id}` | Busca um livro | Nenhuma | `LivroResponseDTO` | `200` | `404` | sim |
-| `POST` | `/livros` | Cadastra um livro | `LivroRequestDTO` | `LivroResponseDTO` | `201` | `400` | sim |
-| `PUT` | `/livros/{id}` | Atualiza um livro | `LivroRequestDTO` | `LivroResponseDTO` | `200` | `400`, `404` | não |
-| `DELETE` | `/livros/{id}` | Remove um livro | Nenhuma | Nenhuma (sem corpo) | `204` | `404` | não |
+| `POST` | `/filmes` | Cadastra um filme | `FilmeRequest` | `Filme` | `201` | `400` | sim |
+| `GET` | `/filmes` | Lista filmes | — | Lista de `Filme` | `200` | — | sim |
+| `GET` | `/filmes/{id}` | Busca por ID | — | `Filme` | `200` | `404` | sim |
 
-### {{Recurso 2}}
+### Salas
 
 | Verbo | Caminho | O que faz | Entrada | Saída | Sucesso | Erros | Funciona |
 |---|---|---|---|---|---|---|---|
-| ... | ... | ... | ... | ... | ... | ... | não |
+| `POST` | `/salas` | Cadastra uma sala | `SalaRequest` | `Sala` | `201` | `400` | sim |
+| `GET` | `/salas` | Lista salas | — | Lista de `Sala` | `200` | — | sim |
+| `GET` | `/salas/{id}` | Busca por ID | — | `Sala` | `200` | `404` | sim |
 
-### {{Recurso 3}}
+### Sessões
 
 | Verbo | Caminho | O que faz | Entrada | Saída | Sucesso | Erros | Funciona |
 |---|---|---|---|---|---|---|---|
-| ... | ... | ... | ... | ... | ... | ... | não |
+| `POST` | `/sessoes` | Cadastra sessão após validar horários (R2) | `SessaoRequest` | `Sessao` | `201` | `400`, `404` | sim |
+| `GET` | `/sessoes` | Lista sessões | — | Lista de `Sessao` | `200` | — | sim |
+| `GET` | `/sessoes/{id}` | Busca por ID | — | `Sessao` | `200` | `404` | sim |
+
+### Pedidos e ingressos
+
+| Verbo | Caminho | O que faz | Entrada | Saída | Sucesso | Erros | Funciona |
+|---|---|---|---|---|---|---|---|
+| `POST` | `/pedidos` | Cria pedido e emite os ingressos (R1 e R3) | `PedidoRequest` | `PedidoResponse` | `201` | `400`, `404` | sim |
+| `GET` | `/pedidos/{id}` | Busca pedido com seus ingressos | — | `PedidoResponse` | `200` | `404` | sim |
+
+**Não existem endpoints independentes de `/ingressos` nesta versão.** Os ingressos são criados internamente na compra de um pedido.
 
 ### Rotas que não são CRUD
 
-As que nascem das regras de negócio do README. Estas precisam funcionar nesta etapa.
+As regras de negócio foram integradas à criação de sessões e pedidos, sem criar endpoints adicionais.
 
 | Verbo | Caminho | O que faz | Regra | Sucesso | Erros |
 |---|---|---|---|---|---|
-| `POST` *(exemplo)* | `/emprestimos` | Registra um empréstimo e tira o livro da estante | R1 e R2 | `201` | `400`, `404` |
-| `PUT` *(exemplo)* | `/emprestimos/{id}/devolver` | Registra a devolução e libera o livro | R3 | `200` | `400`, `404` |
-| ... | ... | ... | ... | ... | ... |
+| `POST` | `/sessoes` | Verifica sobreposição de horários e 20 minutos de limpeza | R2 | `201` | `400`, `404` |
+| `POST` | `/pedidos` | Verifica a cota de 40% e calcula o valor da meia-entrada | R1 | `201` | `400`, `404` |
+| `POST` | `/pedidos` | Recusa pedidos com mais de 6 ingressos | R3 | `201` | `400`, `404` |
 
 ## DTOs
 
-O que entra não é igual ao que sai: o cliente não envia `id` nem campos que a API decide.
-
 | DTO | Direção | Campos | Validações |
 |---|---|---|---|
-| `LivroRequestDTO` *(exemplo)* | entrada | `titulo`, `isbn` | os dois obrigatórios (`@NotBlank`) |
-| `LivroResponseDTO` *(exemplo)* | saída | `id`, `titulo`, `isbn`, `disponivel` | Nenhuma |
-| ... | ... | ... | ... |
+| `FilmeRequest` | entrada | `titulo`, `duracaoMinutos` | `@NotBlank`, `@NotNull`, `@Min(1)` |
+| `SalaRequest` | entrada | `nome`, `capacidade` | `@NotBlank`, `@NotNull`, `@Min(1)` |
+| `SessaoRequest` | entrada | `filmeId`, `salaId`, `inicio`, `precoInteira` | IDs e início obrigatórios; preço ≥ 0,01 |
+| `ItemIngressoRequest` | entrada (item) | `tipo` (`INTEIRA` ou `MEIA`) | `@NotNull` |
+| `PedidoRequest` | entrada | `sessaoId`, `ingressos` | sessão obrigatória, lista não vazia; itens válidos; máximo de 6 validado no Service |
+| `IngressoResponse` | saída (item) | `id`, `sessaoId`, `pedidoId`, `tipo`, `valor` | Calculado pelo servidor |
+| `PedidoResponse` | saída | `id`, `valorTotal`, `ingressos` | Calculado pelo servidor |
+| `ErroDTO` | saída de erro | `status`, `erro`, `mensagem`, `caminho`, `timestamp`, `campos` | Padronizado pelo handler |
+| `CampoErroDTO` | saída de erro | `campo`, `mensagem` | Identifica campo inválido |
+
+**Observação:** `Filme`, `Sala` e `Sessao` são retornados diretamente como entidades JPA. Ainda não existem DTOs de saída separados para elas.
 
 ## Exemplos
 
-Um par requisição/resposta por entidade.
+Os IDs podem variar conforme os dados já cadastrados no banco.
 
-### `POST /livros` *(exemplo)*
+### `POST /filmes`
 
 Requisição:
 
 ```json
-{
-  "titulo": "Dom Casmurro",
-  "isbn": "978-85-359-0277-5"
-}
+{"titulo":"Interestelar","duracaoMinutos":169}
 ```
 
-Resposta, `201 Created`:
+Resposta ilustrativa, `201 Created`:
 
 ```json
-{
-  "id": 1,
-  "titulo": "Dom Casmurro",
-  "isbn": "978-85-359-0277-5",
-  "disponivel": true
-}
+{"id":1,"titulo":"Interestelar","duracaoMinutos":169}
 ```
+
+### `POST /salas`
+
+Requisição:
+
+```json
+{"nome":"Sala 01","capacidade":10}
+```
+
+Resposta ilustrativa, `201 Created`:
+
+```json
+{"id":1,"nome":"Sala 01","capacidade":10}
+```
+
+### `POST /sessoes`
+
+Requisição:
+
+```json
+{"filmeId":1,"salaId":1,"inicio":"2026-11-20T14:00:00","precoInteira":30.00}
+```
+
+Resposta ilustrativa, `201 Created` (objetos associados podem ser exibidos como abaixo):
+
+```json
+{"id":1,"filme":{"id":1,"titulo":"Interestelar","duracaoMinutos":169},"sala":{"id":1,"nome":"Sala 01","capacidade":10},"inicio":"2026-11-20T14:00:00","precoInteira":30.00}
+```
+
+### `POST /pedidos`
+
+Requisição:
+
+```json
+{"sessaoId":1,"ingressos":[{"tipo":"INTEIRA"},{"tipo":"MEIA"}]}
+```
+
+Resposta ilustrativa, `201 Created`, para ingresso inteiro de R$ 30:
+
+```json
+{"id":1,"valorTotal":45.00,"ingressos":[{"id":1,"sessaoId":1,"pedidoId":1,"tipo":"INTEIRA","valor":30.00},{"id":2,"sessaoId":1,"pedidoId":1,"tipo":"MEIA","valor":15.00}]}
+```
+
+O cliente não envia preços nem o total: os valores são calculados no Service.
 
 ## Erros
 
-Todo erro sai no mesmo formato. Este é o `404` de `GET /livros/999`:
+Resposta ilustrativa para violação de regra R3, `POST /pedidos`:
 
 ```json
-{
-  "status": 404,
-  "erro": "Not Found",
-  "mensagem": "Livro não encontrado: 999",
-  "caminho": "/livros/999",
-  "timestamp": "2026-10-06T19:30:00",
-  "campos": []
-}
+{"status":400,"erro":"Bad Request","mensagem":"R3: O limite máximo permitido é de 6 ingressos por pedido.","caminho":"/pedidos","timestamp":"2026-10-14T15:00:00","campos":[]}
 ```
-
-No `400` de validação, a lista `campos` traz um item por campo inválido: `{"campo": "titulo", "mensagem": "Título é obrigatório"}`.
 
 | Status | Quando acontece neste projeto |
 |---|---|
-| `400` | JSON ilegível ou campo inválido no DTO de entrada |
-| `404` | Id que não existe |
-| `400` | Regra de negócio violada: a `mensagem` diz qual regra barrou o pedido |
+| `400` | Requisição inválida ou campo inválido no DTO |
+| `400` | Violação de R1, R2, R3 ou falta de ingressos disponíveis |
+| `404` | ID de filme, sala, sessão ou pedido inexistente |
+
+No caso de validação, `campos` contém objetos como `{"campo":"titulo","mensagem":"não deve estar em branco"}` (o texto específico depende da mensagem de validação configurada). Na violação de regra, `campos` é uma lista vazia.
+
+## Rotas planejadas, ainda não implementadas
+
+| Recurso | Possível evolução |
+|---|---|
+| Filmes, salas e sessões | `PUT` e `DELETE` para edição e exclusão |
+| Pedidos | `GET /pedidos` para listagem e cancelamento de pedidos |
+| Ingressos | Rotas de consulta individual e possível cancelamento |
+
+Estas rotas são ideias de evolução e **não estão disponíveis no Swagger atual**.

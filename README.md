@@ -20,9 +20,9 @@ Projeto Final da disciplina de Backend (Engenharia de Software, SATC). **Etapa 1
 
 | Nome | GitHub |
 |---|---|
-| A preencher — integrante 1 | [@Nykona512](https://github.com/Nykona512) |
-| A preencher — integrante 2 | A preencher |
-| A preencher — integrante 3 | A preencher |
+| Lucas Raupp Ferreira | [@Nykona512](https://github.com/Nykona512) |
+| João Victor | [@Santx](https://github.com/santx2767-crypto) |
+| Victor Valentim Brignoli | [@Victor Valentim Brignoli](https://github.com/VictorBrignoli) |
 
 ## O problema
 
