@@ -5,7 +5,6 @@ package api;
 import org.springframework.boot.SpringApplication;
 // Importa a anotação que liga a configuração automática e o component scan.
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-
 // ============================================================================
 // Ponto de partida do projeto. O que acontece em "./mvnw spring-boot:run":
 //
@@ -23,11 +22,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 // Por isso toda classe do projeto precisa ficar DENTRO do pacote api: o que
 // estiver fora dele o Spring não encontra.
 // ============================================================================
-
 // Marca esta classe como ponto inicial da aplicação Spring Boot.
 @SpringBootApplication
 public class Application {
-
     // Método chamado pela JVM quando o programa começa.
     public static void main(String[] args) {
         // Inicializa o contexto Spring e mantém o servidor web em execução.

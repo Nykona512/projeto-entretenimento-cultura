@@ -1,108 +1,75 @@
 # Contrato da API
 
-> O contrato é o que o cliente da API enxerga: rotas, JSON e status. Desenhe as rotas de **todas** as entidades. Nesta etapa precisam funcionar as três da API simples e as que as regras de negócio usam. As linhas marcadas com *(exemplo)* mostram o nível de detalhe esperado: apague e escreva as do grupo.
+Base: `http://localhost:8080`. Requisições/respostas JSON. Datas de sessão em `yyyy-MM-ddTHH:mm:ss`. Documentação Swagger `/swagger-ui.html`.
 
-## Convenções
+| Método | Rota | Entrada | Saída em sucesso | Erros |
+|---|---|---|---|---|
+| POST | /filmes | `FilmeRequest` | `FilmeResponse` (201) | 400 |
+| GET | /filmes | — | Lista de `FilmeResponse` (200) | — |
+| GET | /filmes/{id} | — | `FilmeResponse` (200) | 404 |
+| POST | /salas | `SalaRequest` | `SalaResponse` (201) | 400 |
+| GET | /salas | — | Lista de `SalaResponse` (200) | — |
+| GET | /salas/{id} | — | `SalaResponse` (200) | 404 |
+| POST | /sessoes | `SessaoRequest` | `SessaoResponse` (201) | 400 (R2), 404 |
+| GET | /sessoes | — | Lista de `SessaoResponse` (200) | — |
+| GET | /sessoes/{id} | — | `SessaoResponse` (200) | 404 |
+| POST | /pedidos | `PedidoRequest` | `PedidoResponse` (201) | 400 (R1, R3, disponibilidade), 404 |
+| GET | /pedidos/{id} | — | `PedidoResponse` (200) | 404 |
+| GET | /ingressos | — | Lista de `IngressoResponse` (200) | — |
+| GET | /ingressos/{id} | — | `IngressoResponse` (200) | 404 |
 
-| Item | Valor |
-|---|---|
-| Endereço base | `http://localhost:8080` |
-| Formato | JSON, na requisição e na resposta |
-| Datas | `yyyy-MM-dd` |
-| Erros | Sempre no formato `ErroDTO` (ver [Erros](#erros)) |
-| Documentação viva | `http://localhost:8080/swagger-ui.html` |
+## DTOs de entrada
 
-## Rotas
+- `FilmeRequest`: `titulo` (não vazio), `duracaoMinutos` (inteiro >= 1).
+- `SalaRequest`: `nome` (não vazio), `capacidade` (inteiro >= 1).
+- `SessaoRequest`: `filmeId`, `salaId`, `inicio`, `precoInteira` (> 0).
+- `PedidoRequest`: `sessaoId`, `ingressos` (lista não vazia de objetos `{"tipo":"INTEIRA"}` ou `{"tipo":"MEIA"}`). O servidor valida máximo de 6.
 
-Coluna **Funciona**: `sim` para as rotas que já respondem nesta etapa: as da API simples e as que as regras de negócio usam.
+O cliente **não envia** preço do ingresso nem total do pedido. Ambos são calculados no Service.
 
-### Livros *(exemplo)*
+## Exemplo de venda
 
-| Verbo | Caminho | O que faz | Entrada | Saída | Sucesso | Erros | Funciona |
-|---|---|---|---|---|---|---|---|
-| `GET` | `/livros` | Lista os livros | Nenhuma | lista de `LivroResponseDTO` | `200` | Nenhum | sim |
-| `GET` | `/livros/{id}` | Busca um livro | Nenhuma | `LivroResponseDTO` | `200` | `404` | sim |
-| `POST` | `/livros` | Cadastra um livro | `LivroRequestDTO` | `LivroResponseDTO` | `201` | `400` | sim |
-| `PUT` | `/livros/{id}` | Atualiza um livro | `LivroRequestDTO` | `LivroResponseDTO` | `200` | `400`, `404` | não |
-| `DELETE` | `/livros/{id}` | Remove um livro | Nenhuma | Nenhuma (sem corpo) | `204` | `404` | não |
-
-### {{Recurso 2}}
-
-| Verbo | Caminho | O que faz | Entrada | Saída | Sucesso | Erros | Funciona |
-|---|---|---|---|---|---|---|---|
-| ... | ... | ... | ... | ... | ... | ... | não |
-
-### {{Recurso 3}}
-
-| Verbo | Caminho | O que faz | Entrada | Saída | Sucesso | Erros | Funciona |
-|---|---|---|---|---|---|---|---|
-| ... | ... | ... | ... | ... | ... | ... | não |
-
-### Rotas que não são CRUD
-
-As que nascem das regras de negócio do README. Estas precisam funcionar nesta etapa.
-
-| Verbo | Caminho | O que faz | Regra | Sucesso | Erros |
-|---|---|---|---|---|---|
-| `POST` *(exemplo)* | `/emprestimos` | Registra um empréstimo e tira o livro da estante | R1 e R2 | `201` | `400`, `404` |
-| `PUT` *(exemplo)* | `/emprestimos/{id}/devolver` | Registra a devolução e libera o livro | R3 | `200` | `400`, `404` |
-| ... | ... | ... | ... | ... | ... |
-
-## DTOs
-
-O que entra não é igual ao que sai: o cliente não envia `id` nem campos que a API decide.
-
-| DTO | Direção | Campos | Validações |
-|---|---|---|---|
-| `LivroRequestDTO` *(exemplo)* | entrada | `titulo`, `isbn` | os dois obrigatórios (`@NotBlank`) |
-| `LivroResponseDTO` *(exemplo)* | saída | `id`, `titulo`, `isbn`, `disponivel` | Nenhuma |
-| ... | ... | ... | ... |
-
-## Exemplos
-
-Um par requisição/resposta por entidade.
-
-### `POST /livros` *(exemplo)*
-
-Requisição:
-
+`POST /pedidos`
 ```json
-{
-  "titulo": "Dom Casmurro",
-  "isbn": "978-85-359-0277-5"
-}
+{"sessaoId":1,"ingressos":[{"tipo":"INTEIRA"},{"tipo":"MEIA"}]}
 ```
 
-Resposta, `201 Created`:
-
+`201 Created` (quando a inteira custa 30 reais)
 ```json
-{
-  "id": 1,
-  "titulo": "Dom Casmurro",
-  "isbn": "978-85-359-0277-5",
-  "disponivel": true
-}
+{"id":1,"valorTotal":45.00,"ingressos":[{"id":1,"sessaoId":1,"pedidoId":1,"tipo":"INTEIRA","valor":30.00},{"id":2,"sessaoId":1,"pedidoId":1,"tipo":"MEIA","valor":15.00}]}
 ```
 
-## Erros
+Em caso de erro, o `ApiExceptionHandler` do template devolve `ErroDTO` com `status`, `erro`, `mensagem`, `caminho`, `timestamp` e `campos`.
 
-Todo erro sai no mesmo formato. Este é o `404` de `GET /livros/999`:
+## DTOs de saída
 
+- `FilmeResponse`: `id`, `titulo`, `duracaoMinutos`.
+- `SalaResponse`: `id`, `nome`, `capacidade`.
+- `SessaoResponse`: `id`, `filmeId`, `salaId`, `inicio`, `precoInteira`.
+- `PedidoResponse`: `id`, `valorTotal`, lista de `IngressoResponse`.
+- `IngressoResponse`: `id`, `sessaoId`, `pedidoId`, `tipo`, `valor`.
+
+As classes em `api.mapper` constroem os DTOs sem retornar entidades JPA diretamente.
+A emissão de ingresso ocorre em `POST /pedidos`; em `/ingressos` há apenas consultas.
+
+## Exemplos adicionais
+
+`POST /filmes`
 ```json
-{
-  "status": 404,
-  "erro": "Not Found",
-  "mensagem": "Livro não encontrado: 999",
-  "caminho": "/livros/999",
-  "timestamp": "2026-10-06T19:30:00",
-  "campos": []
-}
+{"titulo":"Interestelar","duracaoMinutos":169}
+```
+Resposta `201`:
+```json
+{"id":1,"titulo":"Interestelar","duracaoMinutos":169}
 ```
 
-No `400` de validação, a lista `campos` traz um item por campo inválido: `{"campo": "titulo", "mensagem": "Título é obrigatório"}`.
+`POST /sessoes`
+```json
+{"filmeId":1,"salaId":1,"inicio":"2026-12-10T14:00:00","precoInteira":30.00}
+```
+Resposta `201`:
+```json
+{"id":1,"filmeId":1,"salaId":1,"inicio":"2026-12-10T14:00:00","precoInteira":30.00}
+```
 
-| Status | Quando acontece neste projeto |
-|---|---|
-| `400` | JSON ilegível ou campo inválido no DTO de entrada |
-| `404` | Id que não existe |
-| `400` | Regra de negócio violada: a `mensagem` diz qual regra barrou o pedido |
+Buscas com ID inexistente retornam `404`. Violações R1, R2 e R3 retornam `400` com mensagem explicativa.
