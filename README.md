@@ -1,229 +1,190 @@
-# Projeto Entretenimento e Cultura — Sistema de Ingressos de Cinema
+# Sistema de Ingressos de Cinema
 
-> **Disciplina:** Desenvolvimento Back-end — UNISATC  
-> **Tema nº 7:** Entendimento e Cultura  
-> **Etapa:** Projeto final — planejamento e desenvolvimento incremental  
-> **Status:** arquitetura e funcionalidades propostas; verificar no código quais itens já foram implementados.
+API REST para gerenciar filmes, salas, sessões e compras de ingressos de cinema. O sistema permite organizar a programação e vender ingressos inteiros ou meia-entrada, aplicando regras de negócio no servidor.
 
-## 1. O problema
+Projeto Final da disciplina de Backend (Engenharia de Software, SATC). **Etapa 1: arquitetura do backend.**
 
-O projeto propõe uma **API REST para gerenciamento de sessões de cinema e venda de ingressos**. O objetivo é organizar a programação de filmes, evitar conflitos no agendamento das salas e aplicar regras de venda relacionadas à meia-entrada e ao limite de ingressos por pedido.
+## Índice
 
-Atualmente, processos manuais ou sem validações centralizadas podem permitir sessões sobrepostas, vendas acima de limites definidos e cálculos incorretos de preços. O sistema centraliza essas verificações no back-end, garantindo maior consistência dos dados.
+- [Integrantes](#integrantes)
+- [O problema](#o-problema)
+- [Tecnologias](#tecnologias)
+- [Arquitetura](#arquitetura)
+- [Entidades](#entidades)
+- [Rotas](#rotas)
+- [Como executar](#como-executar)
+- [Situação do projeto](#situação-do-projeto)
+- [Documentação](#documentação)
 
-### Quem usa o sistema
+## Integrantes
 
-| Perfil | O que faz |
-| --- | --- |
-| Administrador/atendente do cinema | Cadastra filmes, salas e sessões; consulta a programação; registra ou acompanha pedidos de ingressos. |
-| Cliente | Consulta filmes e sessões disponíveis e solicita ingressos para uma sessão. |
+| Nome | GitHub |
+|---|---|
+| A preencher — integrante 1 | [@Nykona512](https://github.com/Nykona512) |
+| A preencher — integrante 2 | A preencher |
+| A preencher — integrante 3 | A preencher |
 
-### Escopo
+## O problema
 
-**Incluído no planejamento:** cadastro e consulta de filmes, salas e sessões; registro de pedidos e ingressos; validação de regras comerciais; persistência em banco de dados.
+**Tema sorteado:** 7 — Entendimento e Cultura
 
-**Fora do escopo inicial:** processamento de pagamento real, integração com bilheterias externas, emissão de nota fiscal, autenticação avançada e aplicativo/front-end completo.
+Cinemas precisam organizar seus filmes, salas, horários de exibição e vendas de ingressos. Sem verificações centralizadas, podem ocorrer sessões com horários conflitantes, compras acima do limite definido e vendas de meia-entrada além da cota permitida. A API permite cadastrar a programação e registrar compras, aplicando automaticamente essas regras para manter os dados consistentes.
 
-## 2. Regras de negócio
+**Quem usa o sistema:**
 
-| Código | Regra | Local planejado | Rota relacionada |
-| --- | --- | --- | --- |
-| **R1 — Cota de meia-entrada** | Ingressos de meia-entrada estão sujeitos ao limite de **40% dos ingressos disponíveis para a sessão**, conforme o recorte adotado da Lei nº 12.933/2013. O preço da meia-entrada é **50% do valor do ingresso inteiro** e é calculado pelo servidor, sem aceitar preço informado pelo cliente. | `IngressoService.criar()` | `POST /ingressos` |
-| **R2 — Sessões sem sobreposição** | Uma sala não pode receber sessões em intervalos conflitantes. O tempo de ocupação inclui **horário de início + duração do filme + 20 minutos de limpeza**. | `SessaoService.criar()` | `POST /sessoes` |
-| **R3 — Limite por pedido** | Um pedido pode conter **no máximo 6 ingressos**. Quantidades superiores são rejeitadas. | `PedidoService.criar()` | `POST /pedidos` |
+| Quem | O que faz no sistema |
+|---|---|
+| Administrador ou atendente do cinema | Cadastra filmes, salas e sessões; consulta a programação e acompanha as compras. |
+| Cliente | Consulta filmes e sessões disponíveis e solicita a compra de ingressos. |
 
-### Exemplos e mensagens de erro
+**Regras de negócio.** As regras são verificadas na camada Service, e não apenas por validações de formato dos DTOs.
 
-- **R1:** Uma sessão com 100 ingressos disponíveis pode destinar até 40 à meia-entrada. Se essa cota estiver esgotada, a nova solicitação de meia-entrada é recusada com a mensagem: `R1: A cota de meia-entrada desta sessão (40%) já foi atingida.` O limite deve ser calculado com base na capacidade de ingressos disponibilizada para a sessão, não no total já vendido. A contagem não deve incluir ingressos cancelados.
-- **R2:** Um filme de 120 minutos iniciado às 14h ocupa a sala até **16h20**, incluindo limpeza. Outra sessão na mesma sala só pode começar às 16h20 ou depois. Mensagem: `R2: O horário informado apresenta conflito com outra sessão nesta sala.`
-- **R3:** Uma solicitação de 8 ingressos em um único pedido é recusada. Mensagem: `R3: O limite máximo permitido é de 6 ingressos por pedido.`
+| # | Regra | Onde está no código | Rota que usa |
+|---|---|---|---|
+| R1 | No máximo 40% da capacidade de ingressos de uma sessão podem ser vendidos como meia-entrada. O servidor calcula o valor da meia como 50% do preço da inteira, sem receber o preço do cliente. | `IngressoService.criar()` (chamado por `PedidoService`) | `POST /pedidos` |
+| R2 | Sessões da mesma sala não podem ter horários sobrepostos; o intervalo ocupado considera o início, a duração do filme e 20 minutos adicionais de limpeza. | `SessaoService.criar()` | `POST /sessoes` |
+| R3 | Cada pedido pode conter no máximo 6 ingressos. | `PedidoService.criar()` | `POST /pedidos` |
 
-**Observação sobre R1:** este é um modelo acadêmico simplificado de uma regra legal. A aplicação real da meia-entrada envolve outros critérios de elegibilidade e regulamentação. No projeto, a capacidade, o arredondamento da cota para baixo quando necessário e a verificação dos ingressos já emitidos devem ser tratados de forma consistente. Referência: [Lei nº 12.933/2013](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2013/lei/l12933.htm).
+**Fora do escopo:** pagamentos reais, reserva de poltronas numeradas, autenticação de usuários, integração com sistemas externos de bilheteria e emissão de notas fiscais. A comprovação de elegibilidade legal à meia-entrada não é automatizada nesta etapa.
 
-## 3. Entidades e modelo de dados
+## Tecnologias
 
-O modelo abaixo é a **proposta de estrutura** para o desenvolvimento. Os nomes e campos devem ser ajustados às classes efetivamente criadas no projeto.
+| O quê | Qual |
+|---|---|
+| Linguagem | Java 21 |
+| Framework | Spring Boot 3.5.16 (Web, Validation, Data JPA) |
+| Banco de dados | PostgreSQL em Docker |
+| Migrations | Flyway |
+| Documentação da API | springdoc-openapi (Swagger UI) |
 
-| Entidade | Campos principais previstos | Finalidade |
-| --- | --- | --- |
-| `Filme` | `id`, `titulo`, `sinopse`, `duracaoMinutos`, `classificacaoIndicativa` | Representa um filme e sua duração, usada no agendamento. |
-| `Sala` | `id`, `nome`, `capacidade` | Representa a sala de exibição e a quantidade de lugares disponíveis. |
-| `Sessao` | `id`, `filme`, `sala`, `inicio`, `precoInteira` | Associa filme, sala, horário e preço-base da sessão. |
-| `Pedido` | `id`, `dataHora`, `status`, `valorTotal` | Agrupa ingressos adquiridos em uma operação. |
-| `Ingresso` | `id`, `sessao`, `pedido`, `tipo`, `valor`, `status` | Registra ingresso inteiro ou meia-entrada e seu preço calculado pelo servidor. |
+## Arquitetura
 
-### Relacionamentos
+A API é organizada em camadas. Uma requisição entra pelo Controller, passa pelo Service, que aplica as regras de negócio, e chega ao banco pelo Repository; a resposta faz o caminho de volta. Nesta implementação, os DTOs de entrada são recebidos nos Controllers; a conversão necessária é feita nos Services e nos próprios DTOs de resposta. Não foram criadas classes Mapper separadas.
 
-- Um **filme** pode possuir várias **sessões**; cada sessão pertence a um filme.
-- Uma **sala** pode receber várias **sessões** em horários diferentes; cada sessão utiliza uma sala.
-- Uma **sessão** pode possuir vários **ingressos**; cada ingresso pertence a uma sessão.
-- Um **pedido** agrupa de 1 a 6 **ingressos**; cada ingresso pertence a um pedido.
+**Mapa da estrutura.** Situação dos arquivos presentes no código entregue e testado pelo grupo:
 
-```mermaid
-erDiagram
-    FILME ||--o{ SESSAO : possui
-    SALA ||--o{ SESSAO : recebe
-    SESSAO ||--o{ INGRESSO : disponibiliza
-    PEDIDO ||--|{ INGRESSO : contem
-```
+| Entidade | Migration | Model | Repository | DTOs | Mapper | Service | Controller |
+|---|---|---|---|---|---|---|---|
+| Filme | `V1__criar_tabelas.sql`, pronta | `Filme`, pronto | `FilmeRepository`, pronto | `FilmeRequest`, pronto | Sem classe própria; conversão no Service | `FilmeService`, implementado | `FilmeController`, implementado |
+| Sala | `V1__criar_tabelas.sql`, pronta | `Sala`, pronta | `SalaRepository`, pronto | `SalaRequest`, pronto | Sem classe própria; conversão no Service | `SalaService`, implementado | `SalaController`, implementado |
+| Sessao | `V1__criar_tabelas.sql`, pronta | `Sessao`, pronta | `SessaoRepository`, pronto | `SessaoRequest`, pronto | Sem classe própria; conversão no Service | `SessaoService`, implementado | `SessaoController`, implementado |
+| Pedido | `V1__criar_tabelas.sql`, pronta | `Pedido`, pronto | `PedidoRepository`, pronto | `PedidoRequest`, `PedidoResponse`, prontos | Sem classe própria; conversão no Service | `PedidoService`, implementado | `PedidoController`, implementado |
+| Ingresso | `V1__criar_tabelas.sql`, pronta | `Ingresso`, pronto | `IngressoRepository`, pronto | `ItemIngressoRequest`, `IngressoResponse`, prontos | `IngressoResponse.de()`, implementado | `IngressoService`, implementado | Sem Controller próprio; criação por `PedidoController` |
 
-> **Decisão de escopo:** nesta primeira versão, os ingressos são controlados por quantidade, sem escolha de poltrona numerada. Se houver reserva de assentos específicos no futuro, será necessário incluir a entidade `Assento` e impedir vendas duplicadas por sessão.
+## Entidades
 
-## 4. Arquitetura
+| Entidade | O que representa | Como se relaciona |
+|---|---|---|
+| Filme | Filme exibido no cinema, com título e duração em minutos | Pode aparecer em várias sessões. |
+| Sala | Sala de cinema com nome e capacidade de ingressos | Pode receber várias sessões, desde que não haja conflito de horários. |
+| Sessao | Exibição de um filme em uma sala, com horário de início e preço da inteira | Pertence a um filme e a uma sala; possui ingressos vendidos. |
+| Pedido | Compra que agrupa ingressos e registra o valor total | Contém de 1 a 6 ingressos. |
+| Ingresso | Unidade comprada, inteira ou meia, com preço calculado | Pertence a um pedido e a uma sessão. |
 
-A API será organizada em **camadas**, usando **Java e Spring Boot** e banco de dados **PostgreSQL**, com separação entre responsabilidades:
+Atributos, tipos e o diagrama das tabelas estão em [docs/modelo-de-dominio.md](docs/modelo-de-dominio.md).
 
-```text
-Cliente HTTP (Postman / Insomnia)
-          |
-          v
-Controller (rotas REST, entrada e saída por DTOs)
-          |
-          v
-Service (regras de negócio R1, R2 e R3)
-          |
-          v
-Repository (Spring Data JPA / persistência)
-          |
-          v
-PostgreSQL (banco de dados)
-```
+## Rotas
 
-| Camada | Responsabilidade | Exemplos planejados |
-| --- | --- | --- |
-| `controller` | Receber requisições HTTP, chamar services e retornar respostas. | `FilmeController`, `SessaoController`, `IngressoController`, `PedidoController` |
-| `dto` | Definir objetos de entrada e saída da API sem expor diretamente as entidades. | `CriarSessaoRequest`, `CriarIngressoRequest`, `CriarPedidoRequest` |
-| `service` | Aplicar as regras de negócio e coordenar operações. | `SessaoService`, `IngressoService`, `PedidoService` |
-| `repository` | Consultar e gravar dados no PostgreSQL. | `FilmeRepository`, `SessaoRepository`, `IngressoRepository`, `PedidoRepository` |
-| `entity` / `model` | Representar entidades e relacionamentos do banco. | `Filme`, `Sala`, `Sessao`, `Pedido`, `Ingresso` |
-| `exception` | Padronizar erros de regras de negócio e recursos inexistentes. | `RegraNegocioException`, `GlobalExceptionHandler` |
+### As que já funcionam
 
-### Organização de pastas proposta
+| Verbo | Caminho | O que faz | Regra | Sucesso | Erros |
+|---|---|---|---|---|---|
+| `POST` | `/filmes` | Cadastra um filme | Nenhuma | `201` | `400` |
+| `GET` | `/filmes` | Lista filmes | Nenhuma | `200` | — |
+| `GET` | `/filmes/{id}` | Busca filme por ID | Nenhuma | `200` | `404` |
+| `POST` | `/salas` | Cadastra uma sala | Nenhuma | `201` | `400` |
+| `GET` | `/salas` | Lista salas | Nenhuma | `200` | — |
+| `GET` | `/salas/{id}` | Busca sala por ID | Nenhuma | `200` | `404` |
+| `POST` | `/sessoes` | Cadastra sessão e verifica conflito de horário | R2 | `201` | `400`, `404` |
+| `GET` | `/sessoes` | Lista sessões | Nenhuma | `200` | — |
+| `GET` | `/sessoes/{id}` | Busca sessão por ID | Nenhuma | `200` | `404` |
+| `POST` | `/pedidos` | Registra uma compra com seus ingressos | R1 e R3 | `201` | `400`, `404` |
+| `GET` | `/pedidos/{id}` | Consulta um pedido e seus ingressos | Nenhuma | `200` | `404` |
 
-```text
-src/
-  main/
-    java/.../
-      controller/
-      dto/
-      entity/
-      repository/
-      service/
-      exception/
-    resources/
-      application.properties
-      db/migration/
-docs/
-  modelo-de-dados.md
-  contrato-api.md
-README.md
-```
-
-**Padrões adotados:** a camada Controller não executa regras de negócio; a camada Service não recebe entidades diretamente do cliente sem validação; os Repositories concentram o acesso aos dados. Alterações no esquema do banco devem ser versionadas por migrations (ex.: Flyway), conforme a configuração adotada na implementação.
-
-## 5. Contrato da API (planejado)
-
-A tabela descreve as **rotas pretendidas**, e não garante que já existam no código.
-
-| Método | Rota | Descrição | Regra relacionada |
-| --- | --- | --- | --- |
-| `POST` | `/filmes` | Cadastrar filme. | — |
-| `GET` | `/filmes` | Listar filmes. | — |
-| `GET` | `/filmes/{id}` | Consultar filme por ID. | — |
-| `POST` | `/salas` | Cadastrar sala. | — |
-| `GET` | `/salas` | Listar salas. | — |
-| `POST` | `/sessoes` | Cadastrar sessão, conferindo conflitos de horário. | R2 |
-| `GET` | `/sessoes` | Listar sessões. | — |
-| `GET` | `/sessoes/{id}` | Consultar sessão por ID. | — |
-| `POST` | `/pedidos` | Criar pedido, validando a quantidade de ingressos. | R3 |
-| `GET` | `/pedidos/{id}` | Consultar pedido. | — |
-| `POST` | `/ingressos` | Emitir ingresso e calcular valor de meia-entrada quando aplicável. | R1 |
-| `GET` | `/ingressos/{id}` | Consultar ingresso. | — |
-
-**Exemplo de requisição de criação de sessão:**
+Exemplo de requisição:
 
 ```http
-POST /sessoes
+POST /filmes
 Content-Type: application/json
-```
 
-```json
 {
-  "filmeId": 1,
-  "salaId": 2,
-  "inicio": "2026-11-10T14:00:00",
-  "precoInteira": 30.00
+  "titulo": "Interestelar",
+  "duracaoMinutos": 169
 }
 ```
 
-**Exemplo de ingresso:** o cliente informa `sessaoId`, `pedidoId` e `tipo` (`INTEIRA` ou `MEIA`), mas **não informa o preço**; o Service determina o valor a partir de `Sessao.precoInteira` e das regras de meia-entrada.
+Resposta, `201 Created` (exemplo, considerando o primeiro ID gerado):
 
-### Respostas HTTP esperadas
+```json
+{
+  "id": 1,
+  "titulo": "Interestelar",
+  "duracaoMinutos": 169
+}
+```
 
-- `201 Created`: recurso criado com sucesso.
-- `200 OK`: consulta realizada com sucesso.
-- `400 Bad Request`: dados inválidos ou violação de regra de negócio (com mensagem clara).
-- `404 Not Found`: recurso informado não encontrado.
-- `409 Conflict`: conflito de agendamento ou estado, se esse padrão for escolhido na implementação.
+### Erros
 
-> Para exemplos completos de payloads e respostas, desenvolver `docs/contrato-api.md` em conjunto com os DTOs e endpoints reais.
+Todo erro tratado pela API segue o mesmo formato. Este é o `400` devolvido quando a regra R3 é violada (exemplo ilustrativo):
 
-## 6. Validação e testes previstos
+```json
+{
+  "status": 400,
+  "erro": "Bad Request",
+  "mensagem": "R3: O limite máximo permitido é de 6 ingressos por pedido.",
+  "caminho": "/pedidos",
+  "timestamp": "2026-10-14T15:30:00",
+  "campos": []
+}
+```
 
-| Teste | Entrada/cenário | Resultado esperado |
-| --- | --- | --- |
-| R1 — cota disponível | Meia-entrada dentro dos 40% | Emissão autorizada com preço de 50% da inteira. |
-| R1 — cota esgotada | Pedido de meia após atingir a cota | Rejeição com mensagem R1. |
-| R2 — conflito | Nova sessão começa durante outra sessão ou no intervalo de limpeza da mesma sala | Rejeição com mensagem R2. |
-| R2 — sem conflito | Nova sessão na mesma sala começa após o período de limpeza | Cadastro permitido. |
-| R3 — quantidade permitida | Pedido com até 6 ingressos | Pedido permitido, se demais verificações passarem. |
-| R3 — quantidade excedida | Pedido com 7 ou mais ingressos | Rejeição com mensagem R3. |
+Um campo inválido também devolve `400`, com a lista `campos` identificando o problema. Um ID inexistente devolve `404`.
 
-## 7. Tecnologias planejadas
+### As planejadas
 
-- **Java** — linguagem principal.
-- **Spring Boot** — implementação da API REST.
-- **Spring Web** — Controllers e endpoints HTTP.
-- **Spring Data JPA** — persistência e Repositories.
-- **PostgreSQL** — banco de dados relacional.
-- **Flyway** — versionamento do esquema do banco (caso utilizado no template da turma).
-- **Postman ou Insomnia** — testes manuais dos endpoints.
-- **Git e GitHub** — versionamento e colaboração.
+No escopo definido para esta etapa, **não há outras rotas planejadas ainda sem implementação**. As rotas previstas no contrato atual estão respondendo, conforme os testes funcionais realizados pelo grupo. Funcionalidades futuras, como seleção de assentos e pagamentos reais, estão fora do escopo.
 
-## 8. Execução do projeto
+O contrato completo, com todas as rotas e os DTOs, está em [docs/contrato-da-api.md](docs/contrato-da-api.md).
 
-> Esta seção deve ser ajustada após configurar as dependências e o banco de dados na aplicação. Não há confirmação, apenas pelo README, de que a API esteja executável neste momento.
+## Como executar
 
-1. Instalar uma versão do Java compatível com o projeto e PostgreSQL.
-2. Criar o banco de dados utilizado pela aplicação.
-3. Configurar URL, usuário e senha da conexão em `application.properties` ou por variáveis de ambiente; não publicar senhas reais.
-4. Executar as migrations, se configuradas.
-5. Iniciar a aplicação Spring Boot pela IDE ou pelo wrapper Maven, caso o repositório inclua `mvnw`.
-6. Testar os endpoints com Postman ou Insomnia.
+Pré-requisitos: JDK 21, Docker Desktop aberto e Git.
 
-## 9. Etapas de desenvolvimento
+```bash
+git clone https://github.com/Nykona512/projeto-entretenimento-cultura.git
+cd projeto-entretenimento-cultura
 
-- [ ] Definir e revisar modelo de dados e relacionamentos.
-- [ ] Criar entidades JPA e Repositories.
-- [ ] Criar DTOs, Controllers e Services.
-- [ ] Implementar o cadastro e a consulta de uma entidade por `POST`, `GET` e `GET /{id}`.
-- [ ] Implementar R1 — cota de meia-entrada.
-- [ ] Implementar R2 — controle de conflitos entre sessões.
-- [ ] Implementar R3 — limite de ingressos por pedido.
-- [ ] Criar migrations do banco.
-- [ ] Documentar o modelo em `docs/modelo-de-dados.md`.
-- [ ] Documentar o contrato em `docs/contrato-api.md`.
-- [ ] Executar e registrar os testes.
-- [ ] Preparar a apresentação do projeto.
+docker compose up -d          # sobe o PostgreSQL na porta 5437
+./mvnw spring-boot:run        # Windows: .\mvnw.cmd spring-boot:run
+```
 
-> As caixas acima começam desmarcadas por não haver verificação do estado atual do código. Marcar cada item somente após confirmar a implementação.
+> Para executar o projeto por clone, os arquivos da API implementada precisam já estar presentes na branch selecionada. Se o código ainda estiver apenas nos ZIPs do grupo, abra a pasta extraída no VS Code e execute os mesmos comandos nela.
 
-## 10. Integrantes
+Com a API no ar:
 
-Preencher com os nomes dos integrantes do grupo e respectivas responsabilidades, conforme solicitado pelo professor.
+| Endereço | O que é |
+|---|---|
+| <http://localhost:8080/swagger-ui.html> | Swagger UI: rotas com **Try it out** para enviar requisições |
+| <http://localhost:8080/v3/api-docs> | Contrato OpenAPI em JSON |
 
-## 11. Referências
+Para testar as rotas, use o Swagger UI ou o **Postman**. No Postman, importe todas as rotas de uma vez: **Import** → **Link** → `http://localhost:8080/v3/api-docs`.
 
-- [Lei nº 12.933/2013 — meia-entrada](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2013/lei/l12933.htm)
-- [Repositório de aulas de Back-end — professor Daniel Plácido](https://github.com/placidodaniel/backend-aulas-satc)
-- [Repositório do projeto](https://github.com/Nykona512/projeto-entretenimento-cultura)
+Para parar: `Ctrl+C` na API e `docker compose stop` no banco. Para apagar o banco e rodar as migrations do zero: `docker compose down -v` e suba de novo. **Esse último comando apaga os dados armazenados no volume do banco.**
+
+## Situação do projeto
+
+| Parte | Situação |
+|---|---|
+| Desenho | Definido: problema e três regras neste README, modelo de domínio e contrato da API na pasta `docs/`. |
+| Estrutura | Cinco entidades persistidas por `V1__criar_tabelas.sql`, com Models, Repositories, DTOs e Services. Há quatro Controllers; a emissão de ingressos é feita pela criação de pedidos, sem Controller exclusivo para ingresso. |
+| API e regras | Onze rotas implementadas. R1, R2 e R3 foram verificadas em testes manuais pelo Swagger, incluindo casos de sucesso e rejeição. |
+
+**Ainda não funciona:** não há rota planejada pendente dentro do escopo atual. Pagamentos, escolha de poltronas e autenticação não foram implementados por estarem fora do escopo.
+
+## Documentação
+
+| Documento | O que tem |
+|---|---|
+| [Modelo de domínio](docs/modelo-de-dominio.md) | Entidades, relacionamentos, diagrama das tabelas, migrations |
+| [Contrato da API](docs/contrato-da-api.md) | Todas as rotas, os DTOs, exemplos de JSON e erros |
+| [Autoavaliação](docs/autoavaliacao.md) | Critérios de revisão do código para o grupo preencher e conferir |
