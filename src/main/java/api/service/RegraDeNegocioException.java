@@ -14,7 +14,6 @@ package api.service;
 // A mensagem vai para o campo "mensagem" do ErroDTO: escreva para o usuário
 // entender qual regra barrou o pedido.
 public class RegraDeNegocioException extends RuntimeException {
-
     // Cria a exceção com a mensagem que explica a regra violada.
     public RegraDeNegocioException(String mensagem) {
         // Envia a mensagem explicativa para o tratador de erros.

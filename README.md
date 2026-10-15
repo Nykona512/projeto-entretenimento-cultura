@@ -59,17 +59,17 @@ Cinemas precisam organizar seus filmes, salas, horários de exibição e vendas 
 
 ## Arquitetura
 
-A API é organizada em camadas. Uma requisição entra pelo Controller, passa pelo Service, que aplica as regras de negócio, e chega ao banco pelo Repository; a resposta faz o caminho de volta. Nesta implementação, os DTOs de entrada são recebidos nos Controllers; a conversão necessária é feita nos Services e nos próprios DTOs de resposta. Não foram criadas classes Mapper separadas.
+A API é organizada em camadas. Uma requisição entra pelo Controller, passa pelo Service, que aplica as regras de negócio, e chega ao banco pelo Repository; a resposta faz o caminho de volta. Os Controllers recebem RequestDTOs e devolvem ResponseDTOs; os Mappers convertem entidades em DTOs de resposta. As regras de negócio ficam nos Services.
 
 **Mapa da estrutura.** Situação dos arquivos presentes no código entregue e testado pelo grupo:
 
 | Entidade | Migration | Model | Repository | DTOs | Mapper | Service | Controller |
 |---|---|---|---|---|---|---|---|
-| Filme | `V1__criar_tabelas.sql`, pronta | `Filme`, pronto | `FilmeRepository`, pronto | `FilmeRequest`, pronto | Sem classe própria; conversão no Service | `FilmeService`, implementado | `FilmeController`, implementado |
-| Sala | `V1__criar_tabelas.sql`, pronta | `Sala`, pronta | `SalaRepository`, pronto | `SalaRequest`, pronto | Sem classe própria; conversão no Service | `SalaService`, implementado | `SalaController`, implementado |
-| Sessao | `V1__criar_tabelas.sql`, pronta | `Sessao`, pronta | `SessaoRepository`, pronto | `SessaoRequest`, pronto | Sem classe própria; conversão no Service | `SessaoService`, implementado | `SessaoController`, implementado |
-| Pedido | `V1__criar_tabelas.sql`, pronta | `Pedido`, pronto | `PedidoRepository`, pronto | `PedidoRequest`, `PedidoResponse`, prontos | Sem classe própria; conversão no Service | `PedidoService`, implementado | `PedidoController`, implementado |
-| Ingresso | `V1__criar_tabelas.sql`, pronta | `Ingresso`, pronto | `IngressoRepository`, pronto | `ItemIngressoRequest`, `IngressoResponse`, prontos | `IngressoResponse.de()`, implementado | `IngressoService`, implementado | Sem Controller próprio; criação por `PedidoController` |
+| Filme | `V1__criar_tabelas.sql`, pronta | `Filme`, pronto | `FilmeRepository`, pronto | `FilmeRequest`, `FilmeResponse`, prontos | `FilmeMapper`, implementado | `FilmeService`, implementado | `FilmeController`, implementado |
+| Sala | `V1__criar_tabelas.sql`, pronta | `Sala`, pronta | `SalaRepository`, pronto | `SalaRequest`, `SalaResponse`, prontos | `SalaMapper`, implementado | `SalaService`, implementado | `SalaController`, implementado |
+| Sessao | `V1__criar_tabelas.sql`, pronta | `Sessao`, pronta | `SessaoRepository`, pronto | `SessaoRequest`, `SessaoResponse`, prontos | `SessaoMapper`, implementado | `SessaoService`, implementado | `SessaoController`, implementado |
+| Pedido | `V1__criar_tabelas.sql`, pronta | `Pedido`, pronto | `PedidoRepository`, pronto | `PedidoRequest`, `PedidoResponse`, prontos | `PedidoMapper`, implementado | `PedidoService`, implementado | `PedidoController`, implementado |
+| Ingresso | `V1__criar_tabelas.sql`, pronta | `Ingresso`, pronto | `IngressoRepository`, pronto | `ItemIngressoRequest`, `IngressoResponse`, prontos | `IngressoMapper`, implementado | `IngressoService`, implementado | `IngressoController`, consultas implementadas; emissão por `PedidoController` |
 
 ## Entidades
 
@@ -100,6 +100,8 @@ Atributos, tipos e o diagrama das tabelas estão em [docs/modelo-de-dominio.md](
 | `GET` | `/sessoes/{id}` | Busca sessão por ID | Nenhuma | `200` | `404` |
 | `POST` | `/pedidos` | Registra uma compra com seus ingressos | R1 e R3 | `201` | `400`, `404` |
 | `GET` | `/pedidos/{id}` | Consulta um pedido e seus ingressos | Nenhuma | `200` | `404` |
+| `GET` | `/ingressos` | Lista ingressos emitidos | Nenhuma | `200` | — |
+| `GET` | `/ingressos/{id}` | Consulta ingresso pelo ID | Nenhuma | `200` | `404` |
 
 Exemplo de requisição:
 
@@ -176,8 +178,8 @@ Para parar: `Ctrl+C` na API e `docker compose stop` no banco. Para apagar o banc
 | Parte | Situação |
 |---|---|
 | Desenho | Definido: problema e três regras neste README, modelo de domínio e contrato da API na pasta `docs/`. |
-| Estrutura | Cinco entidades persistidas por `V1__criar_tabelas.sql`, com Models, Repositories, DTOs e Services. Há quatro Controllers; a emissão de ingressos é feita pela criação de pedidos, sem Controller exclusivo para ingresso. |
-| API e regras | Onze rotas implementadas. R1, R2 e R3 foram verificadas em testes manuais pelo Swagger, incluindo casos de sucesso e rejeição. |
+| Estrutura | Cinco entidades persistidas por `V1__criar_tabelas.sql`, com Models, Repositories, DTOs e Services. Há cinco Controllers, incluindo consultas próprias de ingressos; a emissão é feita pela criação de pedidos. |
+| API e regras | Treze rotas implementadas. R1, R2 e R3 foram verificadas em testes manuais pelo Swagger, incluindo casos de sucesso e rejeição. |
 
 **Ainda não funciona:** não há rota planejada pendente dentro do escopo atual. Pagamentos, escolha de poltronas e autenticação não foram implementados por estarem fora do escopo.
 
