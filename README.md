@@ -1,52 +1,22 @@
-# Sistema de Ingressos de Cinema
+# Projeto Entretenimento e Cultura — Cinema
 
-API REST para gerenciar filmes, salas, sessões e compras de ingressos de cinema. O sistema permite organizar a programação e vender ingressos inteiros ou meia-entrada, aplicando regras de negócio no servidor.
+Projeto de API REST para gestão de filmes, salas, sessões e venda de ingressos, baseado no template da disciplina de Back-end (SATC). **Tema 7: Entendimento e Cultura**.
 
-Projeto Final da disciplina de Backend (Engenharia de Software, SATC). **Etapa 1: arquitetura do backend.**
+## Problema e usuários
 
-## Índice
+O cinema precisa organizar sua programação e registrar vendas de ingresso sem ultrapassar a capacidade ou infringir as regras de meia-entrada. Administradores/atendentes cadastram filmes, salas e sessões. Clientes/atendentes registram pedidos de ingressos.
 
-- [Integrantes](#integrantes)
-- [O problema](#o-problema)
-- [Tecnologias](#tecnologias)
-- [Arquitetura](#arquitetura)
-- [Entidades](#entidades)
-- [Rotas](#rotas)
-- [Como executar](#como-executar)
-- [Situação do projeto](#situação-do-projeto)
-- [Documentação](#documentação)
+## Regras de negócio
 
-## Integrantes
-
-| Nome | GitHub |
-|---|---|
-| Lucas Raupp Ferreira | [@Nykona512](https://github.com/Nykona512) |
-| João Victor | [@Santx](https://github.com/santx2767-crypto) |
-| Victor Valentim Brignoli | [@Victor Valentim Brignoli](https://github.com/VictorBrignoli) |
-
-## O problema
-
-**Tema sorteado:** 7 — Entendimento e Cultura
-
-Cinemas precisam organizar seus filmes, salas, horários de exibição e vendas de ingressos. Sem verificações centralizadas, podem ocorrer sessões com horários conflitantes, compras acima do limite definido e vendas de meia-entrada além da cota permitida. A API permite cadastrar a programação e registrar compras, aplicando automaticamente essas regras para manter os dados consistentes.
-
-**Quem usa o sistema:**
-
-| Quem | O que faz no sistema |
-|---|---|
-| Administrador ou atendente do cinema | Cadastra filmes, salas e sessões; consulta a programação e acompanha as compras. |
-| Cliente | Consulta filmes e sessões disponíveis e solicita a compra de ingressos. |
-
-**Regras de negócio.** As regras são verificadas na camada Service, e não apenas por validações de formato dos DTOs.
-
-| # | Regra | Onde está no código | Rota que usa |
+| Regra | Descrição | Service | Endpoint |
 |---|---|---|---|
-| R1 | No máximo 40% da capacidade de ingressos de uma sessão podem ser vendidos como meia-entrada. O servidor calcula o valor da meia como 50% do preço da inteira, sem receber o preço do cliente. | `IngressoService.criar()` (chamado por `PedidoService`) | `POST /pedidos` |
-| R2 | Sessões da mesma sala não podem ter horários sobrepostos; o intervalo ocupado considera o início, a duração do filme e 20 minutos adicionais de limpeza. | `SessaoService.criar()` | `POST /sessoes` |
-| R3 | Cada pedido pode conter no máximo 6 ingressos. | `PedidoService.criar()` | `POST /pedidos` |
+| R1 | No máximo 40% da capacidade disponibilizada à sessão pode ser vendida como meia-entrada. O servidor calcula o preço da meia como 50% da inteira. | `IngressoService.criar` | `POST /pedidos` |
+| R2 | Sessões na mesma sala não podem se sobrepor: cada sessão ocupa o horário de início, a duração do filme e mais 20 minutos de limpeza. | `SessaoService.criar` | `POST /sessoes` |
+| R3 | Um pedido contém no máximo 6 ingressos. | `PedidoService.criar` | `POST /pedidos` |
 
-**Fora do escopo:** pagamentos reais, reserva de poltronas numeradas, autenticação de usuários, integração com sistemas externos de bilheteria e emissão de notas fiscais. A comprovação de elegibilidade legal à meia-entrada não é automatizada nesta etapa.
+Se as regras forem violadas, o Service lança `RegraDeNegocioException`, que o template converte em erro HTTP 400. O projeto também impede a venda acima da capacidade da sala ou após o início da sessão.
 
+<<<<<<< HEAD
 ## Tecnologias
 
 | O quê | Qual |
@@ -70,21 +40,25 @@ A API é organizada em camadas. Uma requisição entra pelo Controller, passa pe
 | Sessao | `V1__criar_tabelas.sql`, pronta | `Sessao`, pronta | `SessaoRepository`, pronto | `SessaoRequest`, `SessaoResponse`, prontos | `SessaoMapper`, implementado | `SessaoService`, implementado | `SessaoController`, implementado |
 | Pedido | `V1__criar_tabelas.sql`, pronta | `Pedido`, pronto | `PedidoRepository`, pronto | `PedidoRequest`, `PedidoResponse`, prontos | `PedidoMapper`, implementado | `PedidoService`, implementado | `PedidoController`, implementado |
 | Ingresso | `V1__criar_tabelas.sql`, pronta | `Ingresso`, pronto | `IngressoRepository`, pronto | `ItemIngressoRequest`, `IngressoResponse`, prontos | `IngressoMapper`, implementado | `IngressoService`, implementado | `IngressoController`, consultas implementadas; emissão por `PedidoController` |
+=======
+**Simplificação acadêmica:** a cota da meia-entrada considera a capacidade da sala como total de ingressos da sessão, arredondando 40% para baixo. A regulamentação real da meia-entrada possui critérios adicionais; ver [Lei nº 12.933/2013](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2013/lei/l12933.htm).
+>>>>>>> e67d45c8d29cad88b0a5b4c4a3ccbbf854ec651a
 
 ## Entidades
 
-| Entidade | O que representa | Como se relaciona |
+| Entidade | Campos | Relações |
 |---|---|---|
-| Filme | Filme exibido no cinema, com título e duração em minutos | Pode aparecer em várias sessões. |
-| Sala | Sala de cinema com nome e capacidade de ingressos | Pode receber várias sessões, desde que não haja conflito de horários. |
-| Sessao | Exibição de um filme em uma sala, com horário de início e preço da inteira | Pertence a um filme e a uma sala; possui ingressos vendidos. |
-| Pedido | Compra que agrupa ingressos e registra o valor total | Contém de 1 a 6 ingressos. |
-| Ingresso | Unidade comprada, inteira ou meia, com preço calculado | Pertence a um pedido e a uma sessão. |
+| `Filme` | id, titulo, duracaoMinutos | 1 filme → N sessões |
+| `Sala` | id, nome, capacidade | 1 sala → N sessões |
+| `Sessao` | id, filme, sala, inicio, precoInteira | N sessões → 1 filme e 1 sala |
+| `Pedido` | id, dataHora, valorTotal | 1 pedido → N ingressos |
+| `Ingresso` | id, sessao, pedido, tipo, valor | N ingressos → 1 sessão e 1 pedido |
 
-Atributos, tipos e o diagrama das tabelas estão em [docs/modelo-de-dominio.md](docs/modelo-de-dominio.md).
+Nesta versão há controle por quantidade, sem numeração de poltronas e sem pagamento real.
 
-## Rotas
+## Arquitetura
 
+<<<<<<< HEAD
 ### As que já funcionam
 
 | Verbo | Caminho | O que faz | Regra | Sucesso | Erros |
@@ -113,62 +87,86 @@ Content-Type: application/json
   "titulo": "Interestelar",
   "duracaoMinutos": 169
 }
+=======
+```text
+Requisição HTTP / Postman
+         ↓
+controller (rotas e DTOs)
+         ↓
+service (validações e R1, R2, R3)
+         ↓
+repository (Spring Data JPA)
+         ↓
+PostgreSQL (Flyway V1__criar_tabelas.sql)
+>>>>>>> e67d45c8d29cad88b0a5b4c4a3ccbbf854ec651a
 ```
 
-Resposta, `201 Created` (exemplo, considerando o primeiro ID gerado):
+O projeto mantém o pacote `api` e reaproveita do template `Application`, `ApiExceptionHandler`, DTOs de erro e Swagger. O Service concentra as regras, e os pedidos são salvos em uma transação. Durante a compra a linha da sessão é bloqueada para evitar duas compras concorrentes excedendo a cota.
 
+## Rotas disponíveis no código
+
+| Método | Caminho | Descrição |
+|---|---|---|
+| POST | `/filmes` | Cadastrar filme |
+| GET | `/filmes` | Listar filmes |
+| GET | `/filmes/{id}` | Buscar filme |
+| POST | `/salas` | Cadastrar sala |
+| GET | `/salas` | Listar salas |
+| GET | `/salas/{id}` | Buscar sala |
+| POST | `/sessoes` | Cadastrar sessão; verifica R2 |
+| GET | `/sessoes` | Listar sessões |
+| GET | `/sessoes/{id}` | Buscar sessão |
+| POST | `/pedidos` | Criar pedido, emitir ingressos; verifica R1 e R3 |
+| GET | `/pedidos/{id}` | Buscar pedido e ingressos |
+
+### Exemplos de JSON
+
+**POST /filmes**
 ```json
-{
-  "id": 1,
-  "titulo": "Interestelar",
-  "duracaoMinutos": 169
-}
+{"titulo":"Filme Exemplo","duracaoMinutos":120}
 ```
 
-### Erros
-
-Todo erro tratado pela API segue o mesmo formato. Este é o `400` devolvido quando a regra R3 é violada (exemplo ilustrativo):
-
+**POST /salas**
 ```json
-{
-  "status": 400,
-  "erro": "Bad Request",
-  "mensagem": "R3: O limite máximo permitido é de 6 ingressos por pedido.",
-  "caminho": "/pedidos",
-  "timestamp": "2026-10-14T15:30:00",
-  "campos": []
-}
+{"nome":"Sala 1","capacidade":100}
 ```
 
-Um campo inválido também devolve `400`, com a lista `campos` identificando o problema. Um ID inexistente devolve `404`.
+**POST /sessoes** (depois de cadastrar um filme e uma sala)
+```json
+{"filmeId":1,"salaId":1,"inicio":"2026-12-10T14:00:00","precoInteira":30.00}
+```
 
-### As planejadas
+**POST /pedidos** (cria um pedido com 2 ingressos; nunca enviar preço)
+```json
+{"sessaoId":1,"ingressos":[{"tipo":"INTEIRA"},{"tipo":"MEIA"}]}
+```
 
-No escopo definido para esta etapa, **não há outras rotas planejadas ainda sem implementação**. As rotas previstas no contrato atual estão respondendo, conforme os testes funcionais realizados pelo grupo. Funcionalidades futuras, como seleção de assentos e pagamentos reais, estão fora do escopo.
-
-O contrato completo, com todas as rotas e os DTOs, está em [docs/contrato-da-api.md](docs/contrato-da-api.md).
+O último exemplo retorna o ID do pedido, seu total e os ingressos emitidos, cada um com o preço calculado pela API.
 
 ## Como executar
 
-Pré-requisitos: JDK 21, Docker Desktop aberto e Git.
+1. Instale **Java 21**, **Docker Desktop** e execute o Docker.
+2. No terminal da pasta do projeto, execute `docker compose up -d` (o template usa PostgreSQL exposto na porta **5437**).
+3. No Windows execute `mvnw.cmd spring-boot:run`; no Linux/macOS execute `./mvnw spring-boot:run`. O Maven Wrapper baixa Maven caso necessário, exigindo acesso à internet.
+4. Abra o Swagger em <http://localhost:8080/swagger-ui.html> e faça as requisições na ordem acima.
+5. O Flyway cria as tabelas automaticamente no primeiro start. A configuração do banco está em `src/main/resources/application.properties`.
 
-```bash
-git clone https://github.com/Nykona512/projeto-entretenimento-cultura.git
-cd projeto-entretenimento-cultura
+### Testes manuais sugeridos
 
-docker compose up -d          # sobe o PostgreSQL na porta 5437
-./mvnw spring-boot:run        # Windows: .\mvnw.cmd spring-boot:run
-```
+- R1: numa sala com 10 lugares, tente vender um quinto ingresso meia (o limite é 4).
+- R2: filme de 120 minutos iniciado às 14h na sala 1; tente outra sessão às 16h10 (erro) e às 16h20 (permitida).
+- R3: envie um pedido com 7 itens de ingresso (erro).
+- Capacidade: numa sala com 2 lugares, tente uma terceira venda (erro).
 
-> Para executar o projeto por clone, os arquivos da API implementada precisam já estar presentes na branch selecionada. Se o código ainda estiver apenas nos ZIPs do grupo, abra a pasta extraída no VS Code e execute os mesmos comandos nela.
+## Documentos
 
-Com a API no ar:
+- [Modelo de domínio](docs/modelo-de-dominio.md)
+- [Contrato da API](docs/contrato-da-api.md)
+- [Autoavaliação](docs/autoavaliacao.md) — preencher pelo grupo após testar o projeto
 
-| Endereço | O que é |
-|---|---|
-| <http://localhost:8080/swagger-ui.html> | Swagger UI: rotas com **Try it out** para enviar requisições |
-| <http://localhost:8080/v3/api-docs> | Contrato OpenAPI em JSON |
+## Status e limites
 
+<<<<<<< HEAD
 Para testar as rotas, use o Swagger UI ou o **Postman**. No Postman, importe todas as rotas de uma vez: **Import** → **Link** → `http://localhost:8080/v3/api-docs`.
 
 Para parar: `Ctrl+C` na API e `docker compose stop` no banco. Para apagar o banco e rodar as migrations do zero: `docker compose down -v` e suba de novo. **Esse último comando apaga os dados armazenados no volume do banco.**
@@ -190,3 +188,6 @@ Para parar: `Ctrl+C` na API e `docker compose stop` no banco. Para apagar o banc
 | [Modelo de domínio](docs/modelo-de-dominio.md) | Entidades, relacionamentos, diagrama das tabelas, migrations |
 | [Contrato da API](docs/contrato-da-api.md) | Todas as rotas, os DTOs, exemplos de JSON e erros |
 | [Autoavaliação](docs/autoavaliacao.md) | Critérios de revisão do código para o grupo preencher e conferir |
+=======
+As classes, rotas e a migration foram escritas neste pacote. **A compilação e a execução com PostgreSQL não foram verificadas neste ambiente**, pois o Maven Wrapper não conseguiu baixar sua distribuição. Antes da entrega, executar a aplicação, testar as regras no Postman/Swagger e registrar os resultados na autoavaliação.
+>>>>>>> e67d45c8d29cad88b0a5b4c4a3ccbbf854ec651a

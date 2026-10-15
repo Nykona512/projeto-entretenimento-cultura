@@ -17,6 +17,7 @@ erDiagram
 ```
 
 As chaves primárias são geradas automaticamente; as FKs são obrigatórias. As tabelas são criadas pela migration `V1__criar_tabelas.sql`. Não há numeração de assentos nesta primeira versão.
+<<<<<<< HEAD
 
 ## Tipos principais no Java
 
@@ -30,3 +31,5 @@ As chaves primárias são geradas automaticamente; as FKs são obrigatórias. As
 
 A migration `V1__criar_tabelas.sql` define as cinco tabelas e as chaves estrangeiras.
 O acesso a entidades acontece pelos Repositories, enquanto os Controllers utilizam DTOs.
+=======
+>>>>>>> e67d45c8d29cad88b0a5b4c4a3ccbbf854ec651a
